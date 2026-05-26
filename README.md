@@ -317,3 +317,166 @@ function SlickXTool:CreateUI()
 end
 
 SlickXTool:CreateUI()
+# Racket Rivals scripttt
+
+--[[
+    RacketClient.lua
+    Handles user input and communicates with the server.
+--]]
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+local mouse = player:GetMouse()
+local HitEvent = ReplicatedStorage:WaitForChild("RacketHitEvent")
+
+local DEBOUNCE_TIME = 0.5
+local lastSwing = 0
+local autoPlaying = false
+
+-- Configuration for court center and prediction
+local COURT_CENTER_X = 0
+local PLAYER_COURT_HALF_LENGTH = 25 -- Assuming player's half of the court is 0 to 50 or -50 to 0, so center is 25 or -25
+local HIT_RANGE_CLIENT = 7.5 -- Client-side check for hitting, slightly less than server's to account for latency
+-- Create Mobile-Friendly GUI
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "AutoPlayGui"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = player:WaitForChild("PlayerGui")
+
+local mainButton = Instance.new("TextButton")
+mainButton.Name = "ToggleAutoPlay"
+mainButton.Size = UDim2.new(0, 120, 0, 45)
+mainButton.Position = UDim2.new(0.8, 0, 0.7, 0) -- Positioned for thumb access on mobile
+mainButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+mainButton.BorderSizePixel = 0
+mainButton.Text = "Auto Play: OFF"
+mainButton.TextColor3 = Color3.new(1, 1, 1)
+mainButton.Font = Enum.Font.GothamBold
+mainButton.TextSize = 14
+mainButton.Parent = screenGui
+
+local uiCorner = Instance.new("UICorner")
+uiCorner.CornerRadius = UDim.new(0, 8) -- Corrected: This was an error in previous version
+uiCorner.Parent = mainButton
+
+-- Toggle Logic
+mainButton.MouseButton1Click:Connect(function()
+    autoPlaying = not autoPlaying
+    if autoPlaying then
+        mainButton.Text = "Auto Play: ON"
+        mainButton.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
+    else
+        mainButton.Text = "Auto Play: OFF"
+        mainButton.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
+    end
+end)
+
+-- Bot Logic Loop
+RunService.Heartbeat:Connect(function()
+    if not autoPlaying then return end
+    
+    local character = player.Character
+    if not character then return end
+    local root = character:FindFirstChild("HumanoidRootPart")
+    local hum = character:FindFirstChild("Humanoid")
+    if not root or not hum then return end
+
+    local ball = workspace:FindFirstChild("TennisBall") or workspace:FindFirstChild("Ball")
+    if not ball then return end
+
+    local velocity = ball.AssemblyLinearVelocity
+    local gravity = workspace.Gravity
+    
+    local playerSideZ = root.Position.Z > 0 -- True if player is on the positive Z side of the court
+    local ballOnOpponentSide = (playerSideZ and ball.Position.Z < 0) or (not playerSideZ and ball.Position.Z > 0)
+
+    local playerCourtCenterZ = playerSideZ and PLAYER_COURT_HALF_LENGTH or -PLAYER_COURT_HALF_LENGTH
+    local playerCourtCenterPos = Vector3.new(COURT_CENTER_X, root.Position.Y, playerCourtCenterZ)
+
+    local moveTargetPos = playerCourtCenterPos -- Default move target: center of player's court
+
+    if not ballOnOpponentSide then -- If ball is on player's side, predict its landing
+        -- Only predict if the ball is moving with significant speed
+        if velocity.Magnitude > 2 then
+            -- Solving the kinematic equation for time 't': 
+            -- y(t) = y0 + vy*t - 0.5*g*t^2
+            -- We want to find when the ball reaches the player's root height
+            local y0 = ball.Position.Y
+            local targetY = root.Position.Y
+            local vy = velocity.Y
+            local g = gravity
+
+            local discriminant = (vy * vy) + (2 * g * (y0 - targetY))
+            if discriminant >= 0 then
+                local t1 = (vy + math.sqrt(discriminant)) / g
+                local t2 = (vy - math.sqrt(discriminant)) / g
+                
+                local validTimes = {}
+                if t1 > 0 then table.insert(validTimes, t1) end
+                if t2 > 0 then table.insert(validTimes, t2) end
+
+                local t = 0
+                if #validTimes > 0 then
+                    if y0 >= targetY then
+                        -- If ball is currently above or at player height, take the later time (on the way down)
+                        t = math.max(unpack(validTimes))
+                    else
+                        -- If ball is currently below player height, take the earlier time (on the way up)
+                        t = math.min(unpack(validTimes))
+                    end
+                end
+                
+                if t > 0 then
+                    -- Calculate future X and Z positions based on current velocity
+                    local futureX = ball.Position.X + (velocity.X * t)
+                    local futureZ = ball.Position.Z + (velocity.Z * t)
+                    moveTargetPos = Vector3.new(futureX, targetY, futureZ)
+                end
+            end
+        else
+            -- If ball is on player's side but not moving fast, just move to its current XZ
+            moveTargetPos = Vector3.new(ball.Position.X, root.Position.Y, ball.Position.Z)
+        end
+    end
+
+    -- Move character to the determined target spot
+    hum:MoveTo(moveTargetPos)
+
+    -- Check if close enough to hit (matches server HIT_RANGE)
+    if (root.Position - ball.Position).Magnitude < HIT_RANGE_CLIENT then
+        local currentTime = tick()
+        if currentTime - lastSwing >= DEBOUNCE_TIME then
+            lastSwing = currentTime
+            
+            -- "Pro" Targeting: Aim for deep corners on the opposite side
+            -- If player is on the positive Z side, aim for negative Z, and vice-versa
+            local targetZ = playerSideZ and -70 or 70 -- Assuming -70 and 70 are deep into opponent's court
+            local targetX = math.random(-25, 25) -- Randomize X to hit corners
+            local hitTargetPos = Vector3.new(targetX, 0, targetZ) -- Y is 0 for ground level hit
+            
+            HitEvent:FireServer(hitTargetPos)
+        end
+    end
+end)
+
+local function onInputBegan(input, gameProcessed)
+    if gameProcessed or autoPlaying then return end
+    
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        local currentTime = tick()
+        if currentTime - lastSwing >= DEBOUNCE_TIME then
+            lastSwing = currentTime
+            
+            -- Fire the server with the mouse position for aiming
+            HitEvent:FireServer(mouse.Hit.Position)
+            
+            -- Local feedback: Play swing animation here
+        end
+    end
+end
+
+UserInputService.InputBegan:Connect(onInputBegan)
