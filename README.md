@@ -1,4 +1,4 @@
-# SLICKX BEST SCRFIPT EVER
+# SLICKX BEST SCRIPT EVER
 -- [[ SLICK X | Futuristic Roblox Utility ]]
 -- Ported to Lua for Native Roblox Environment
 
