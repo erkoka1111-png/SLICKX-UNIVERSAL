@@ -5,20 +5,9 @@
 -- [[ SLICK X | Futuristic Roblox Utility ]]
 -- Ported to Lua for Native Roblox Environment
 
-local function getService(name)
-    local ok, service = pcall(game.GetService, game, name)
-    return ok and service
-end
-
-local TweenService = getService("TweenService")
-local UserInputService = getService("UserInputService")
-local HttpService = getService("HttpService")
-local Players = getService("Players")
-
-local LocalPlayer = Players and Players.LocalPlayer
-local CoreGui = pcall(function() return game:GetService("CoreGui") end) and game:GetService("CoreGui")
-local PlayerGui = LocalPlayer and LocalPlayer:WaitForChild("PlayerGui", 5)
-local UIParent = CoreGui or PlayerGui
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local HttpService = game:GetService("HttpService")
 
 local BG_MAIN = Color3.fromRGB(5, 5, 5)
 local BG_SIDEBAR = Color3.fromRGB(10, 10, 10)
@@ -114,7 +103,7 @@ function SlickXTool:GenerateLuaScript(genre, features)
 end
 
 function SlickXTool:Notify(title, msg)
-    local sg = UIParent:FindFirstChild("SLICK_X_GUI")
+    local sg = game:GetService("CoreGui"):FindFirstChild("SLICK_X_GUI")
     if not sg then return end
 
     local notification = Instance.new("Frame", sg)
@@ -149,11 +138,11 @@ function SlickXTool:CreateUI()
     local ScreenGui = Instance.new("ScreenGui")
     ScreenGui.Name = "SLICK_X_GUI"
     ScreenGui.ResetOnSpawn = false
-    ScreenGui.Parent = UIParent
+    ScreenGui.Parent = game:GetService("CoreGui")
 
     local MainFrame = Instance.new("Frame")
-    MainFrame.Size = UDim2.new(0, 900, 0, 600)
-    MainFrame.Position = UDim2.new(0.5, -450, 0.5, -300)
+    MainFrame.Size = UDim2.new(0, 500, 0, 320)
+    MainFrame.Position = UDim2.new(0.5, -250, 0.5, -160)
     MainFrame.BackgroundColor3 = BG_MAIN
     MainFrame.BorderSizePixel = 0
     MainFrame.Parent = ScreenGui
@@ -165,7 +154,7 @@ function SlickXTool:CreateUI()
 
     -- Sidebar
     local Sidebar = Instance.new("Frame")
-    Sidebar.Size = UDim2.new(0, 200, 1, 0)
+    Sidebar.Size = UDim2.new(0, 120, 1, 0)
     Sidebar.BackgroundColor3 = BG_SIDEBAR
     Sidebar.BorderSizePixel = 0
     Sidebar.Parent = MainFrame
@@ -177,15 +166,15 @@ function SlickXTool:CreateUI()
     local Title = Instance.new("TextLabel")
     Title.Text = "SLICK X"
     Title.Font = Enum.Font.SourceSansBold
-    Title.TextSize = 24
+    Title.TextSize = 18
     Title.TextColor3 = ACCENT_PURPLE
     Title.BackgroundTransparency = 1
-    Title.Size = UDim2.new(1, 0, 0, 80)
+    Title.Size = UDim2.new(1, 0, 0, 50)
     Title.Parent = Sidebar
 
     local TabContainer = Instance.new("Frame")
-    TabContainer.Position = UDim2.new(0, 0, 0, 100)
-    TabContainer.Size = UDim2.new(1, 0, 1, -100)
+    TabContainer.Position = UDim2.new(0, 0, 0, 70)
+    TabContainer.Size = UDim2.new(1, 0, 1, -70)
     TabContainer.BackgroundTransparency = 1
     TabContainer.Parent = Sidebar
 
@@ -194,14 +183,19 @@ function SlickXTool:CreateUI()
         local btn = Instance.new("TextButton")
         btn.Text = "  " .. tab:upper()
         btn.Font = Enum.Font.SourceSansBold
-        btn.TextSize = 14
+        btn.TextSize = 12
         btn.TextColor3 = TEXT_MAIN
         btn.BackgroundColor3 = BG_SIDEBAR
         btn.BorderSizePixel = 0
-        btn.Size = UDim2.new(1, -20, 0, 40)
-        btn.Position = UDim2.new(0, 10, 0, (i-1) * 45)
+        btn.Size = UDim2.new(1, -10, 0, 30)
+        btn.Position = UDim2.new(0, 5, 0, (i-1) * 35)
         btn.TextXAlignment = Enum.TextXAlignment.Left
         btn.Parent = TabContainer
+
+        btn.MouseButton1Click:Connect(function()
+            StatusLabel.Text = "MENU: " .. tab:upper()
+            StatusLabel.TextColor3 = ACCENT_BLUE
+        end)
 
         btn.MouseEnter:Connect(function()
             TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundColor3 = ACCENT_BLUE, TextColor3 = Color3.new(0,0,0)}):Play()
@@ -213,25 +207,25 @@ function SlickXTool:CreateUI()
 
     -- Main Content Area
     local Content = Instance.new("Frame")
-    Content.Position = UDim2.new(0, 200, 0, 0)
-    Content.Size = UDim2.new(1, -200, 1, 0)
+    Content.Position = UDim2.new(0, 120, 0, 0)
+    Content.Size = UDim2.new(1, -120, 1, 0)
     Content.BackgroundTransparency = 1
     Content.Parent = MainFrame
 
     local SearchBox = Instance.new("TextBox")
-    SearchBox.Size = UDim2.new(1, -60, 0, 40)
-    SearchBox.Position = UDim2.new(0, 30, 0, 30)
+    SearchBox.Size = UDim2.new(1, -40, 0, 30)
+    SearchBox.Position = UDim2.new(0, 20, 0, 20)
     SearchBox.BackgroundColor3 = Color3.fromRGB(17, 17, 17)
     SearchBox.TextColor3 = ACCENT_BLUE
     SearchBox.PlaceholderText = "Search Game or Script..."
     SearchBox.Text = ""
     SearchBox.Font = Enum.Font.SourceSansBold
-    SearchBox.TextSize = 16
+    SearchBox.TextSize = 14
     SearchBox.Parent = Content
 
     local OutputFrame = Instance.new("ScrollingFrame")
-    OutputFrame.Size = UDim2.new(1, -60, 0, 350)
-    OutputFrame.Position = UDim2.new(0, 30, 0, 90)
+    OutputFrame.Size = UDim2.new(1, -40, 0, 160)
+    OutputFrame.Position = UDim2.new(0, 20, 0, 60)
     OutputFrame.BackgroundColor3 = Color3.new(0,0,0)
     OutputFrame.ScrollBarThickness = 4
     OutputFrame.Parent = Content
@@ -256,23 +250,23 @@ function SlickXTool:CreateUI()
 
     local ButtonFrame = Instance.new("Frame")
     ButtonFrame.Size = UDim2.new(1, 0, 0, 50)
-    ButtonFrame.Position = UDim2.new(0, 0, 1, -80)
+    ButtonFrame.Position = UDim2.new(0, 0, 1, -70)
     ButtonFrame.BackgroundTransparency = 1
     ButtonFrame.Parent = Content
 
     local ListLayout = Instance.new("UIListLayout")
     ListLayout.FillDirection = Enum.FillDirection.Horizontal
     ListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-    ListLayout.Padding = UDim.new(0, 15)
+    ListLayout.Padding = UDim.new(0, 8)
     ListLayout.Parent = ButtonFrame
 
     local function createBtn(text, color, callback)
         local b = Instance.new("TextButton")
         b.Text = text
-        b.Size = UDim2.new(0, 150, 0, 40)
+        b.Size = UDim2.new(0, 110, 0, 35)
         b.BackgroundColor3 = color
         b.Font = Enum.Font.SourceSansBold
-        b.TextSize = 14
+        b.TextSize = 12
         b.TextColor3 = Color3.new(0,0,0)
         b.Parent = ButtonFrame
         b.MouseButton1Click:Connect(callback)
@@ -311,14 +305,10 @@ function SlickXTool:CreateUI()
     end)
 
     createBtn("COPY", Color3.fromRGB(20, 20, 20), function()
-        local clip = setclipboard or toclipboard or (getgenv and getgenv().setclipboard)
-        if clip then
-            clip(OutputText.Text)
+        if setclipboard then
+            setclipboard(OutputText.Text)
             StatusLabel.Text = "BUFFER COPIED TO CLIPBOARD"
             StatusLabel.TextColor3 = ACCENT_BLUE
-        else
-            StatusLabel.Text = "COPY FAILED: NO EXECUTOR CLIPBOARD API"
-            StatusLabel.TextColor3 = Color3.fromRGB(255, 0, 0)
         end
     end)
 
