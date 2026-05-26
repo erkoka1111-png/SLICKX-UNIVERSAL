@@ -49,7 +49,8 @@ local SlickXTool = {
         fps = {"shooting", "reloading", "camera_control", "aimbot"},
         sandbox = {"building", "resource_gathering", "world_generation"}
     },
-    Tabs = {}
+    Tabs = {},
+    TabButtons = {}
 }
 
 function SlickXTool:SearchAndAnalyze(query)
@@ -135,33 +136,6 @@ function SlickXTool:Notify(title, msg)
     end)
 end
 
-function SlickXTool:SwitchTab(tabName)
-    if self.CurrentTab == tabName then return end
-    
-    local oldTab = self.Tabs[self.CurrentTab]
-    local newTab = self.Tabs[tabName]
-
-    if oldTab then
-        TweenService:Create(oldTab, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-            GroupTransparency = 1,
-            Position = UDim2.new(0, 0, 0, 15)
-        }):Play()
-        task.delay(0.25, function() oldTab.Visible = false end)
-    end
-
-    if newTab then
-        newTab.Visible = true
-        newTab.GroupTransparency = 1
-        newTab.Position = UDim2.new(0, 0, 0, -15)
-        TweenService:Create(newTab, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-            GroupTransparency = 0,
-            Position = UDim2.new(0, 0, 0, 0)
-        }):Play()
-    end
-    
-    self.CurrentTab = tabName
-end
-
 function SlickXTool:CreateUI()
     local ScreenGui = Instance.new("ScreenGui")
     ScreenGui.Name = "SLICK_X_GUI"
@@ -235,35 +209,6 @@ function SlickXTool:CreateUI()
     Content.BackgroundTransparency = 1
     Content.Parent = MainFrame
 
-    -- Tab: Home
-    local HomeTab = Instance.new("CanvasGroup")
-    HomeTab.Size = UDim2.new(1, 0, 1, 0)
-    HomeTab.BackgroundTransparency = 1
-    HomeTab.Visible = true
-    HomeTab.GroupTransparency = 0
-    HomeTab.Parent = Content
-    self.Tabs["Home"] = HomeTab
-    self.CurrentTab = "Home"
-
-    local Welcome = Instance.new("TextLabel")
-    Welcome.Text = "WELCOME TO SLICK X\n\nSELECT A MODULE FROM THE SIDEBAR\nTO BEGIN YOUR SESSION"
-    Welcome.Size = UDim2.new(1, 0, 1, 0)
-    Welcome.Font = Enum.Font.SourceSansBold
-    Welcome.TextColor3 = TEXT_MAIN
-    Welcome.TextSize = 18
-    Welcome.BackgroundTransparency = 1
-    Welcome.Parent = HomeTab
-
-    -- Tab: Executor (Moving existing elements here)
-    local ExecutorTab = Instance.new("CanvasGroup")
-    ExecutorTab.Size = UDim2.new(1, 0, 1, 0)
-    ExecutorTab.BackgroundTransparency = 1
-    ExecutorTab.Visible = false
-    ExecutorTab.GroupTransparency = 1
-    ExecutorTab.Parent = Content
-    self.Tabs["Executor"] = ExecutorTab
-    self.Tabs["Script Hub"] = ExecutorTab -- Map Script Hub to Executor for now
-
     local SearchBox = Instance.new("TextBox")
     SearchBox.Size = UDim2.new(1, -60, 0, 40)
     SearchBox.Position = UDim2.new(0, 30, 0, 30)
@@ -273,14 +218,14 @@ function SlickXTool:CreateUI()
     SearchBox.Text = ""
     SearchBox.Font = Enum.Font.SourceSansBold
     SearchBox.TextSize = 16
-    SearchBox.Parent = ExecutorTab
+    SearchBox.Parent = Content
 
     local OutputFrame = Instance.new("ScrollingFrame")
     OutputFrame.Size = UDim2.new(1, -60, 0, 350)
     OutputFrame.Position = UDim2.new(0, 30, 0, 90)
     OutputFrame.BackgroundColor3 = Color3.new(0,0,0)
     OutputFrame.ScrollBarThickness = 4
-    OutputFrame.Parent = ExecutorTab
+    OutputFrame.Parent = Content
 
     local Stroke = Instance.new("UIStroke")
     Stroke.Color = ACCENT_PURPLE
@@ -304,15 +249,7 @@ function SlickXTool:CreateUI()
     ButtonFrame.Size = UDim2.new(1, 0, 0, 50)
     ButtonFrame.Position = UDim2.new(0, 0, 1, -80)
     ButtonFrame.BackgroundTransparency = 1
-    ButtonFrame.Parent = ExecutorTab
-
-    -- Placeholder Tabs
-    for _, name in pairs({"Saved Scripts", "Game Scanner", "Settings"}) do
-        local f = Instance.new("CanvasGroup", Content)
-        f.Size = UDim2.new(1,0,1,0); f.BackgroundTransparency = 1; f.Visible = false; f.GroupTransparency = 1
-        Instance.new("TextLabel", f).Text = name:upper().." PANEL UNDER CONSTRUCTION"; f.TextLabel.Size = UDim2.new(1,0,1,0); f.TextLabel.TextColor3 = ACCENT_PURPLE; f.TextLabel.BackgroundTransparency = 1
-        self.Tabs[name] = f
-    end
+    ButtonFrame.Parent = Content
 
     local ListLayout = Instance.new("UIListLayout")
     ListLayout.FillDirection = Enum.FillDirection.Horizontal
