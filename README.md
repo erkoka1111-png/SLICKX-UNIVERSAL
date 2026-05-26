@@ -1,6 +1,7 @@
 # (SLICKX BEST SCRIPT EVER) <---- DO NOT COPY THIS.
 # (make sure to copy all ) <---- DO NOT COPY THIS.
-# COPY ALL OF THIS.
+                   |
+# COPY ALL OF THIS V
 
 -- [[ SLICK X | Futuristic Roblox Utility ]]
 -- Ported to Lua for Native Roblox Environment
