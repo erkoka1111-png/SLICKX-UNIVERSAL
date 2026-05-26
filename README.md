@@ -336,6 +336,8 @@ local HitEvent = ReplicatedStorage:WaitForChild("RacketHitEvent")
 local DEBOUNCE_TIME = 0.5
 local lastSwing = 0
 local autoPlaying = false
+local reactionFactor = 1 -- 1 = Instant, 0 = Slow
+local lastThinkTime = 0
 
 -- Configuration for court center and prediction
 local COURT_CENTER_X = 0
@@ -343,21 +345,62 @@ local PLAYER_COURT_HALF_LENGTH = 25 -- Assuming player's half of the court is 0 
 local HIT_RANGE_CLIENT = 7.5 -- Client-side check for hitting, slightly less than server's to account for latency
 -- Create Mobile-Friendly GUI
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "AutoPlayGui"
+screenGui.Name = "SLICKX Racket Rivals"
 screenGui.ResetOnSpawn = false
 screenGui.Parent = player:WaitForChild("PlayerGui")
+
+-- Main Container for Draggable UI
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainFrame"
+mainFrame.Size = UDim2.new(0, 120, 0, 110)
+mainFrame.Position = UDim2.new(0.8, 0, 0.7, -25)
+mainFrame.BackgroundTransparency = 1
+mainFrame.Parent = screenGui
+
+-- Toggle Visibility Button (Stays visible when mainFrame is hidden)
+local toggleGuiButton = Instance.new("TextButton")
+toggleGuiButton.Name = "ToggleGuiButton"
+toggleGuiButton.Size = UDim2.new(0, 35, 0, 35)
+toggleGuiButton.Position = UDim2.new(0.8, -40, 0.7, -25)
+toggleGuiButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+toggleGuiButton.Text = "SL"
+toggleGuiButton.TextColor3 = Color3.new(1, 1, 1)
+toggleGuiButton.Font = Enum.Font.GothamBold
+toggleGuiButton.TextSize = 14
+toggleGuiButton.Parent = screenGui
+
+local toggleCorner = Instance.new("UICorner")
+toggleCorner.CornerRadius = UDim.new(1, 0) -- Circular
+toggleCorner.Parent = toggleGuiButton
+
+toggleGuiButton.MouseButton1Click:Connect(function()
+    mainFrame.Visible = not mainFrame.Visible
+end)
+
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Name = "Title"
+titleLabel.Size = UDim2.new(0, 120, 0, 20)
+titleLabel.Position = UDim2.new(0, 0, 0, 0)
+titleLabel.BackgroundTransparency = 1
+titleLabel.Text = "SLICKX"
+titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+titleLabel.Font = Enum.Font.GothamBold
+titleLabel.TextSize = 16
+titleLabel.TextStrokeTransparency = 0.5
+titleLabel.TextXAlignment = Enum.TextXAlignment.Center
+titleLabel.Parent = mainFrame
 
 local mainButton = Instance.new("TextButton")
 mainButton.Name = "ToggleAutoPlay"
 mainButton.Size = UDim2.new(0, 120, 0, 45)
-mainButton.Position = UDim2.new(0.8, 0, 0.7, 0) -- Positioned for thumb access on mobile
+mainButton.Position = UDim2.new(0, 0, 0, 25)
 mainButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 mainButton.BorderSizePixel = 0
 mainButton.Text = "Auto Play: OFF"
 mainButton.TextColor3 = Color3.new(1, 1, 1)
 mainButton.Font = Enum.Font.GothamBold
 mainButton.TextSize = 14
-mainButton.Parent = screenGui
+mainButton.Parent = mainFrame
 
 local uiCorner = Instance.new("UICorner")
 uiCorner.CornerRadius = UDim.new(0, 8) -- Corrected: This was an error in previous version
@@ -372,6 +415,85 @@ mainButton.MouseButton1Click:Connect(function()
     else
         mainButton.Text = "Auto Play: OFF"
         mainButton.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
+    end
+end)
+
+-- Slider GUI Elements
+local sliderFrame = Instance.new("Frame")
+sliderFrame.Name = "SliderFrame"
+sliderFrame.Size = UDim2.new(0, 120, 0, 8)
+sliderFrame.Position = UDim2.new(0, 0, 0, 80)
+sliderFrame.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+sliderFrame.BorderSizePixel = 0
+sliderFrame.Parent = mainFrame
+
+local sliderKnob = Instance.new("TextButton")
+sliderKnob.Name = "Knob"
+sliderKnob.Size = UDim2.new(0, 18, 0, 18)
+sliderKnob.Position = UDim2.new(1, -9, 0.5, -9)
+sliderKnob.BackgroundColor3 = Color3.fromRGB(200, 200, 200)
+sliderKnob.Text = ""
+sliderKnob.Parent = sliderFrame
+
+local sliderLabel = Instance.new("TextLabel")
+sliderLabel.Size = UDim2.new(1, 0, 0, 15)
+sliderLabel.Position = UDim2.new(0, 0, 0, 12)
+sliderLabel.BackgroundTransparency = 1
+sliderLabel.Text = "Reaction: 100%"
+sliderLabel.TextColor3 = Color3.new(1, 1, 1)
+sliderLabel.Font = Enum.Font.Gotham
+sliderLabel.TextSize = 10
+sliderLabel.Parent = sliderFrame
+
+local uicSlider = Instance.new("UICorner")
+uicSlider.CornerRadius = UDim.new(1, 0)
+uicSlider.Parent = sliderKnob
+
+-- Slider Logic
+local dragging = false
+sliderKnob.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then dragging = true end
+end)
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then dragging = false end
+end)
+UserInputService.InputChanged:Connect(function(input)
+    if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        local relX = math.clamp((input.Position.X - sliderFrame.AbsolutePosition.X) / sliderFrame.AbsoluteSize.X, 0, 1)
+        sliderKnob.Position = UDim2.new(relX, -9, 0.5, -9)
+        reactionFactor = relX
+        sliderLabel.Text = "Reaction: " .. math.floor(reactionFactor * 100) .. "%"
+    end
+end)
+
+-- GUI Dragging Logic
+local guiDragging = false
+local dragInput, dragStart, startPos
+
+titleLabel.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        guiDragging = true
+        dragStart = input.Position
+        startPos = mainFrame.Position
+
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                guiDragging = false
+            end
+        end)
+    end
+end)
+
+titleLabel.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        dragInput = input
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if input == dragInput and guiDragging then
+        local delta = input.Position - dragStart
+        mainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
     end
 end)
 
@@ -399,52 +521,50 @@ RunService.Heartbeat:Connect(function()
 
     local moveTargetPos = playerCourtCenterPos -- Default move target: center of player's court
 
-    if not ballOnOpponentSide then -- If ball is on player's side, predict its landing
-        -- Only predict if the ball is moving with significant speed
-        if velocity.Magnitude > 2 then
-            -- Solving the kinematic equation for time 't': 
-            -- y(t) = y0 + vy*t - 0.5*g*t^2
-            -- We want to find when the ball reaches the player's root height
-            local y0 = ball.Position.Y
-            local targetY = root.Position.Y
-            local vy = velocity.Y
-            local g = gravity
+    -- Throttled movement calculation based on reaction speed
+    local thinkDelay = (1 - reactionFactor) * 0.4 -- Up to 0.4s delay at 0% reaction
+    if tick() - lastThinkTime >= thinkDelay then
+        lastThinkTime = tick()
+        
+        if not ballOnOpponentSide then -- If ball is on player's side, predict its landing
+            if velocity.Magnitude > 2 then
+                local y0 = ball.Position.Y
+                local targetY = root.Position.Y
+                local vy = velocity.Y
+                local g = gravity
 
-            local discriminant = (vy * vy) + (2 * g * (y0 - targetY))
-            if discriminant >= 0 then
-                local t1 = (vy + math.sqrt(discriminant)) / g
-                local t2 = (vy - math.sqrt(discriminant)) / g
-                
-                local validTimes = {}
-                if t1 > 0 then table.insert(validTimes, t1) end
-                if t2 > 0 then table.insert(validTimes, t2) end
+                local discriminant = (vy * vy) + (2 * g * (y0 - targetY))
+                if discriminant >= 0 then
+                    local t1 = (vy + math.sqrt(discriminant)) / g
+                    local t2 = (vy - math.sqrt(discriminant)) / g
+                    
+                    local validTimes = {}
+                    if t1 > 0 then table.insert(validTimes, t1) end
+                    if t2 > 0 then table.insert(validTimes, t2) end
 
-                local t = 0
-                if #validTimes > 0 then
-                    if y0 >= targetY then
-                        -- If ball is currently above or at player height, take the later time (on the way down)
-                        t = math.max(unpack(validTimes))
-                    else
-                        -- If ball is currently below player height, take the earlier time (on the way up)
-                        t = math.min(unpack(validTimes))
+                    local t = 0
+                    if #validTimes > 0 then
+                        if y0 >= targetY then
+                            t = math.max(unpack(validTimes))
+                        else
+                            t = math.min(unpack(validTimes))
+                        end
+                    end
+                    
+                    if t > 0 then
+                        local futureX = ball.Position.X + (velocity.X * t)
+                        local futureZ = ball.Position.Z + (velocity.Z * t)
+                        moveTargetPos = Vector3.new(futureX, targetY, futureZ)
                     end
                 end
-                
-                if t > 0 then
-                    -- Calculate future X and Z positions based on current velocity
-                    local futureX = ball.Position.X + (velocity.X * t)
-                    local futureZ = ball.Position.Z + (velocity.Z * t)
-                    moveTargetPos = Vector3.new(futureX, targetY, futureZ)
-                end
+            else
+                moveTargetPos = Vector3.new(ball.Position.X, root.Position.Y, ball.Position.Z)
             end
-        else
-            -- If ball is on player's side but not moving fast, just move to its current XZ
-            moveTargetPos = Vector3.new(ball.Position.X, root.Position.Y, ball.Position.Z)
         end
+        
+        -- Update character movement
+        hum:MoveTo(moveTargetPos)
     end
-
-    -- Move character to the determined target spot
-    hum:MoveTo(moveTargetPos)
 
     -- Check if close enough to hit (matches server HIT_RANGE)
     if (root.Position - ball.Position).Magnitude < HIT_RANGE_CLIENT then
